@@ -1,4 +1,5 @@
 # Создайте виртуальную машину для CA: Используйте gcloud для создания новой машины. Установим необходимые параметры, чтобы обеспечить безопасность и подключение по SSH:
+# Я использовал регион sia-east1-b, вы же можете использовать любой другой регион
 gcloud compute instances create cert-center \
   --zone=asia-east1-b \
   --machine-type=e2-medium \
@@ -6,3 +7,10 @@ gcloud compute instances create cert-center \
   --image-project=debian-cloud \
   --tags=allow-ssh \
   --metadata=ssh-keys="$(whoami):$(cat ~/.ssh/id_rsa.pub)"
+
+# Проверьте соединение с созданной VM 
+gcloud compute ssh cert-center --zone=asia-east1-b
+
+# Создайте правила firewall для созданной VM, здесь разрешенно только подключение по SSH
+gcloud compute firewall-rules create allow-ssh --allow=tcp:22
+gcloud compute firewall-rules delete default-allow-http default-allow-https
