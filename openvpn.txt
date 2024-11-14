@@ -1,0 +1,35 @@
+# Выполните команду для создания виртуальной машины с фиксированным IP-адресом
+# При первом подключение может попросить добавить SSH ключ, добавьте его
+gcloud compute instances create vpn-server \
+  --zone=asia-east1-b \
+  --tags=allow-vpn-traffic
+
+# Закройте все порты, кроме тех, что необходимы для работы VPN (например, 1194 для UDP). Включите только нужные правила в брандмауэре Google Cloud:
+gcloud compute firewall-rules create allow-vpn-traffic \
+  --direction=INGRESS \
+  --priority=1000 \
+  --network=default \
+  --action=ALLOW \
+  --rules=udp:1194 \
+  --source-ranges=0.0.0.0/0 \
+  --target-tags=allow-vpn-traffic
+
+# Залогинитесь в новую vm 
+gcloud compute ssh vpn-server --zone=asia-east1-b --project=PROJECT_ID
+
+# Установите OpenVPN и необходимые зависимости:
+sudo apt-get update
+sudo apt-get install -y openvpn easy-rsa
+
+# Настройка OpenVPN сервера
+sudo apt-get install -y openvpn easy-rsa
+
+# Настроим каталоги и создадим ключи
+make-cadir /etc/openvpn/easy-rsa
+# На этом этапе может возникнуть ошибка с правами на папку, испроавить можно командой 
+sudo chmod -R 755 /etc/openvpn/easy-rsa/
+cd /etc/openvpn/easy-rsa
+sudo ./easyrsa init-pki
+sudo ./easyrsa gen-req vpn-server nopass
+
+
