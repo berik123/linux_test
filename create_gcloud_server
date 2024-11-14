@@ -1,5 +1,5 @@
 # Создайте виртуальную машину для CA: Используйте gcloud для создания новой машины. Установим необходимые параметры, чтобы обеспечить безопасность и подключение по SSH:
-# Я использовал регион sia-east1-b, вы же можете использовать любой другой регион
+# Я использовал регион sia-east1-b, вы же можете использовать любой другой регион. Все команды нужно выполнять внутри VM
 gcloud compute instances create cert-center \
   --zone=asia-east1-b \
   --machine-type=e2-medium \
@@ -14,3 +14,22 @@ gcloud compute ssh cert-center --zone=asia-east1-b
 # Создайте правила firewall для созданной VM, здесь разрешенно только подключение по SSH
 gcloud compute firewall-rules create allow-ssh --allow=tcp:22
 gcloud compute firewall-rules delete default-allow-http default-allow-https
+
+# Установка easy-rsa 
+# Подключитесь к VM 
+gcloud compute ssh cert-center --zone=asia-east1-b
+
+ # Установка и настройка Easy-RSA для PKI
+sudo apt update
+sudo apt install easy-rsa -y
+
+# Инициализация PKI и создание корневого сертификата: Создайте PKI и корневой сертификат, используя Easy-RSA:
+mkdir -p ~/easy-rsa
+ln -s /usr/share/easy-rsa/* ~/easy-rsa/
+cd ~/easy-rsa
+./easyrsa init-pki
+./easyrsa build-ca nopass
+
+# Ваш сервер готов! 
+# P.S Автоматизация настроек с помощью скриптов 
+# Можно автоматизировать некоторые вещи такие как генерация запросов на сертификаты и их подписи. для удобства файл будет лежать в репозитории под названием cert_and_pki.sh 
