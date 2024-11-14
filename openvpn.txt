@@ -32,4 +32,5 @@ cd /etc/openvpn/easy-rsa
 sudo ./easyrsa init-pki
 sudo ./easyrsa gen-req vpn-server nopass
 
-
+# Передаем сертификат в наш сертификациооный центр
+scp /etc/openvpn/easy-rsa/pki/reqs/vpn-server.req   murzabulatovberik@cert-center:/tmp/
