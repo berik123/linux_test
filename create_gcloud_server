@@ -1,0 +1,8 @@
+# Создайте виртуальную машину для CA: Используйте gcloud для создания новой машины. Установим необходимые параметры, чтобы обеспечить безопасность и подключение по SSH:
+gcloud compute instances create cert-center \
+  --zone=asia-east1-b \
+  --machine-type=e2-medium \
+  --image-family=debian-11 \
+  --image-project=debian-cloud \
+  --tags=allow-ssh \
+  --metadata=ssh-keys="$(whoami):$(cat ~/.ssh/id_rsa.pub)"
