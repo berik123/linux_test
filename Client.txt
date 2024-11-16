@@ -17,3 +17,77 @@ cat /home/$USER/Desktop/skillbox/ta.key | gcloud compute ssh easy-rsa --zone=asi
  cd ~/easy-rsa/
 sudo cp pki/issued/client-1.crt ~/clients/keys/
 sudo chown $USER:$USER ~/clients/keys/*
+
+# Скачайте шаблон
+gcloud compute ssh vpn-server-01 --zone=asia-east1-b --command="sudo cat /usr/share/doc/openvpn/examples/sample-config-files/client.conf" > /home/$USER/Desktop/skillbox/client.conf
+# Для удобства можно у себя на локальной машине подредактировать его
+# В строке remote замените порт 1194 на нужный вам, если меняли номер порта, который прослушивает сервер VPN:
+remote X.X.X.X 1194
+# Должен быть правильно указан протокол:
+proto udp
+# Снимите комментарий со строк:
+user nobody
+group nogroup
+# Закомментируйте следующие строки:
+;ca ca.crt
+;cert client.crt
+;key client.key
+# А строку, относящуюся к tls-auth, наоборот, нужно раскомментировать:
+tls-crypt ta.key 1
+# Следующие строки должны совпадать с соответствующими строками, прописанными в файле /etc/openvpn/server.conf:
+cipher AES-256-GCM
+auth SHA256
+# Добавьте строку:
+key-direction 1
+# Также добавьте строки, которые нужно будет раскомментировать только для Linux клиентов:
+; script-security 2
+; up /etc/openvpn/update-resolv-conf
+; down /etc/openvpn/update-resolv-conf
+# Плюс ко всему добавьте строки настроек для клиентов, которые планируют использовать systemd-resolved:
+; script-security 2
+; up /etc/openvpn/update-systemd-resolved
+; down /etc/openvpn/update-systemd-resolved
+; down-pre
+; dhcp-option DOMAIN-ROUTE
+# Сохраните изменения в файле, закройте его.
+
+#закачайте его обратно в сервер easy-rsa
+cat /home/$USER/Desktop/skillbox/client.conf | gcloud compute ssh easy-rsa --zone=asia-east1-b --command="sudo tee /home/$USER/clients/base.conf > /dev/null"
+# Создайте скрипт и полложите ее в папку clients
+sudo vim make_config.sh
+
+******************************
+#!/bin/bash
+# First argument: Client identifier
+KEY_DIR=~/clients/keys
+OUTPUT_DIR=~/clients/files
+BASE_CONFIG=~/clients/base.conf
+cat ${BASE_CONFIG} \
+<(echo -e '<ca>') \
+${KEY_DIR}/ca.crt \
+<(echo -e '</ca>\n<cert>') \
+${KEY_DIR}/${1}.crt \
+<(echo -e '</cert>\n<key>') \
+${KEY_DIR}/${1}.key \
+<(echo -e '</key>\n<tls-crypt>') \
+${KEY_DIR}/ta.key \
+<(echo -e '</tls-crypt>') \
+> ${OUTPUT_DIR}/${1}.ovpn
+*************************
+chmod 700 make_config.sh
+sudo cp ../easy-rsa/pki/ca.crt keys/
+sudo chown YOURGCLOUDUSER:YOURGCLOUDUSER keys/ca.crt
+cd ~/clients
+./make_config.sh client-1
+# В результате скрипт создаст файл ~/clients/files/client-1.ovpn. Такой файл необходимо передать клиенту для установки на устройство, которое он
+# будет использовать для подключения к закрытой сети через сервер VPN. При этом на стороне клиента должно быть развёрнуто программное обеспечение OpenVPN, к
+# которому нужно подключить полученный из ЦС файл с расширением ovpn.
+# Перенесём конфигурационный файл на клиентскую машину.
+gcloud compute ssh easy-rsa --zone=asia-east1-b --command="sudo cat /home/murzabulatovberik/clients/files/client-1.ovpn" > /home/deck/Desktop/skillbox/client-1.ovpn
+
+
+
+
+
+
+
