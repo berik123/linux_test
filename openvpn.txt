@@ -18,12 +18,24 @@ sudo apt-get install openvpn
 /usr/sbin/openvpn --genkey --secret ta.key
 sudo cp ta.key /etc/openvpn/server/
 
+# Скопируем стандартные настройки opevpn севера и используем их
+sudo cp /usr/share/doc/openvpn/examples//sample-config-files/server.conf /etc/openvpn/server/
+sudo vim /etc/openvpn/server/server.conf 
+# В разделе HMAC закомментируйте строку tls-auth и после неё вставьте строку tls-crypt ta.key.
+# Найдите в том же файле строку cipher AES-256-CBC, закомментируйте её и добавьте строки cipher AES-256-GCM и auth SHA256:
+# Теперь найдите текст — либо dh dh2048.pem, либо dh dh.pem — и закомментируйте его. После закомментированной строки вставьте строку dh none.
+# Чтобы OpenVPN запускался без привилегий, снимите комментарий перед user nobody и group nogroup.
+# Сохраните изменения в файле, закройте его.
 
+# Теперь необходимо внести изменения в конфигурацию сети на сервере VPN для обеспечения правильной маршрутизации трафика. Откройте конфигурационный файл
+sudo vim /etc/sysctl.conf
+# Расскоментируйте 
+net.ipv4.ip_forward = 1
+# Перед закрытием файла сохраните внесённые изменения.
+# Для применения новой настройки наберите:
+sudo sysctl -p
 
-
-
-
-
+# Подготовьте спец 
 
 
 
