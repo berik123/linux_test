@@ -33,7 +33,7 @@ group nogroup
 ;cert client.crt
 ;key client.key
 # А строку, относящуюся к tls-auth, наоборот, нужно раскомментировать:
-tls-crypt ta.key 1
+#tls-crypt ta.key 1
 # Следующие строки должны совпадать с соответствующими строками, прописанными в файле /etc/openvpn/server.conf:
 cipher AES-256-GCM
 auth SHA256
