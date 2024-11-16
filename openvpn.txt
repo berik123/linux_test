@@ -35,12 +35,38 @@ net.ipv4.ip_forward = 1
 # Для применения новой настройки наберите:
 sudo sysctl -p
 
-# Подготовьте спец 
+# Подготовьте файл iptables.sh
+vim iptables.sh
+****************************
+eth=$1
+proto=$2
+port=$3
+#OpenVPN
+iptables -A INPUT -i "$eth" -m state --state NEW -p "$proto" --dport "$port" -j ACCEPT
+#Allow TUN
+iptables -A INPUT -i tun+ -j ACCEPT
+#Allow TUN
+iptables -A FORWARD -i tun+ -j ACCEPT
+iptables -A FORWARD -i tun+ -o "$eth" -m state --state RELATED,ESTABLISHED -j ACCEPT
+iptables -A FORWARD -i "$eth" -o tun+ -m state --state RELATED,ESTABLISHED -j ACCEPT
+#NAT
+iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o "$eth" -j MASQUERADE
+****************************
+chmod +x iptables.sh
+# ip a - с помощью этой узнайте имя интерфейса, чтобы передать ее в скрипт. Если не установлен iptabels
+sudo apt-get install iptable
+sudo ./iptables.sh ens4 udp 1194
 
+# Проверьте статус сервиса, если exited, то мы не положили туда еще один ключ
+sudo systemctl start openvpn-server@server.service
+# Скопируйте ключ на локальный пк и загрузите на vpn-server-01
+gcloud compute ssh easy-rsa --zone=asia-east1-b --command="sudo cat /home/murzabulatovberik/easy-rsa/pki/private/server.key" > /home/deck/Desktop/skillbox/server.key
+cat /home/deck/Desktop/skillbox/server.key | gcloud compute ssh vpn-server-01 --zone=asia-east1-b --command="sudo tee /etc/openvpn/server/server.key > /dev/null"
+# Запустите его и проверьте статус
+sudo systemctl start openvpn-server@server.service
+sudo systemctl status openvpn-server@server.service
 
-
-
-
+# Ваш VPN сервер готов, можно будет создавать для клиентов новые сертификаты
 
 
 
