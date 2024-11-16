@@ -1,0 +1,14 @@
+# Инструкция по созданиию ключа для клиентов OPENVPN
+# На easy-rsa сервере
+cd ~/easy-rsa/
+mkdir -p ~/clients/keys
+chmod -R 700 ~/clients/
+
+# Создаем ключ для клиента Client-1
+./easyrsa gen-req client-1 nopass
+# Копируем в нашу директорию keys
+cp pki/private/client-1.key ../clients/keys/
+# Подписываем наш ключ
+./easyrsa sign-req client client-1
+
+# Далее нам нужно скачать файл ta.key с Open-Vpn-Server на easy-rsa сервер
