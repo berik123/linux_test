@@ -1,17 +1,62 @@
-# Создайте виртуальную машину для CA: Используйте gcloud для создания новой машины. Установим необходимые параметры, чтобы обеспечить безопасность и подключение по SSH:
+# Создайте виртуальную машину для CA
 # Я использовал регион sia-east1-b, вы же можете использовать любой другой регион. Все команды нужно выполнять внутри VM
-gcloud compute instances create easy-rsa-server \
-    --zone=asia-east1-b \
-    --machine-type=e2-medium \
-    --image-family=debian-11 \
-    --image-project=debian-cloud \
-    --tags=easy-rsa-server,http-server,https-server
+gcloud compute instances create easy-rsa --zone=asia-east1-b --machine-type=e2-medium
 
-# Проверьте соединение с созданной VM 
-gcloud compute ssh easy-rsa-server --zone=asia-east1-b
+# Коннектимся к нашей машине
+gcloud compute ssh easy-rsa --zone=asia-east1-b
 
 # Установите easy-rsa
+sudo apt-get update
 sudo apt-get install easy-rsa
+
+# Создаем каталог easy-rsa
+mkdir ~/easy-rsa
+
+# Создаем ссылку на нашу папку
+ln -s /usr/share/easy-rsa/* ~/easy-rsa/
+# Установим права на папку
+chmod 700 ~/easy-rsa/
+
+# Перейдем в папку и скопируем файл var и настроим переменные
+cd easy-rsa/
+./easyrsa init-pki
+cp vars.example vars
+vim vars
+# В этом файле нужно изменить следующие параметры
+set_var EASYRSA_REQ_COUNTRY "RUS"
+set_var EASYRSA_REQ_PROVINCE "Moscow"
+set_var EASYRSA_REQ_CITY "Moscow City"
+set_var EASYRSA_REQ_ORG "Our Company Name"
+set_var EASYRSA_REQ_EMAIL "sysadmin@company.ru"
+set_var EASYRSA_REQ_OU "LLC"
+set_var EASYRSA_ALGO "ec"
+set_var EASYRSA_DIGEST "sha512"
+# Далее запустите скрипт easyrsa в командной строке:
+./easyrsa build-ca
+# Здесь необходимо будет ввести парольную фразу, которую впоследствии нужно
+# вводить для получения доступа к вашему ЦС при совершении операций с
+# сертификатами.
+# Также система предложит вам ввести Common Name — обозначение вашего ЦС. Вы
+# можете ввести любую символьную строку или принять дефолтное имя, нажав Enter.
+
+# Следующий шаг установка OPENVPN сервера
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Обычно затем директорию с easy-rsa копируют в конфигурационную папку OpenVPN, но на наш взгляд CA лучше располагать отдельно, 
 # поэтому мы скопируем директорию просто в /etc, однако это ни не что не влияет, и вы можете поступить по своему разумению.
