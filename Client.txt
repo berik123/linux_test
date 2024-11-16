@@ -13,3 +13,7 @@ cp pki/private/client-1.key ../clients/keys/
 
 # Далее нам нужно скачать файл ta.key с Open-Vpn-Server на easy-rsa сервер
 gcloud compute ssh vpn-server-01 --zone=asia-east1-b --command="sudo cat /etc/openvpn/server/ta.key" > /home/$USER/Desktop/skillbox/ta.key
+cat /home/$USER/Desktop/skillbox/ta.key | gcloud compute ssh easy-rsa --zone=asia-east1-b --command="sudo tee /home/$USER/clients/keys/ta.key > /dev/null"
+ cd ~/easy-rsa/
+sudo cp pki/issued/client-1.crt ~/clients/keys/
+sudo chown $USER:$USER ~/clients/keys/*
