@@ -7,22 +7,28 @@ gcloud compute firewall-rules create allow-1194 --allow=udp:1194 --direction=ING
 # Подключаемся к серверу
 gcloudcompute  ssh vpn-server-01
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Прежде всего установим OpenVPN, подключитесь к VM и введите команду
+# Прежде всего установим OpenVPN
 sudo apt-get install openvpn
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Создадим папку keys в директории OpenVPN и скопируем туда все файлы с easy-rsa сервера
 sudo mkdir /etc/openvpn/keys
