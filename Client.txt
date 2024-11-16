@@ -12,3 +12,4 @@ cp pki/private/client-1.key ../clients/keys/
 ./easyrsa sign-req client client-1
 
 # Далее нам нужно скачать файл ta.key с Open-Vpn-Server на easy-rsa сервер
+gcloud compute ssh vpn-server-01 --zone=asia-east1-b --command="sudo cat /etc/openvpn/server/ta.key" > /home/$USER/Desktop/skillbox/ta.key
