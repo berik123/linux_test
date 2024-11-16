@@ -10,6 +10,14 @@ gcloudcompute  ssh vpn-server-01
 # Прежде всего установим OpenVPN
 sudo apt-get install openvpn
 
+# На этом этапе нужно передать ключи с easy-rsa сервера на сервер VPN
+
+# Чтобы повысить уровень безопасности, следует добавить дополнительный секретный
+# ключ для использования сервером и клиентами при помощи OpenVPN tls-crypt. Для
+# создания публичного tls-crypt-ключа запустите:
+/usr/sbin/openvpn --genkey --secret ta.key
+sudo cp ta.key /etc/openvpn/server/
+
 
 
 
