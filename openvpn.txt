@@ -1,10 +1,25 @@
 # Выполните команду для создания виртуальной машины 
-gcloud compute instances create ovpn-server \
-    --zone=asia-east1-b \
-    --machine-type=e2-medium \
-    --image-family=debian-11 \
-    --image-project=debian-cloud \
-    --tags=ovpn-server,http-server,https-server
+gcloud compute instances create vpn-server-01 --zone=asia-east1-b --machine-type=e2-medium
+
+# Добавим правила файрволла 
+gcloud compute firewall-rules create allow-1194 --allow=udp:1194 --direction=INGRESS
+
+# Подключаемся к серверу
+gcloudcompute  ssh vpn-server-01
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Прежде всего установим OpenVPN, подключитесь к VM и введите команду
 sudo apt-get install openvpn
