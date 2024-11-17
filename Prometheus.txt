@@ -1,0 +1,106 @@
+# для начала создадим новую vm:
+gcloud compute instances create prometheus --zone=asia-east1-b --machine-type=e2-medium
+
+1. Установка Prometheus Server
+# Добавление официального репозитория Prometheus
+  echo "deb [signed-by=/usr/share/keyrings/prometheus-keyring.gpg] http://deb.debian.org/debian bookworm-backports main" | sudo tee /etc/apt/sources.list.d/prometheus.list
+  sudo apt-get update
+
+# Установка Prometheus
+  sudo apt-get install -y prometheus
+
+# Установка Node Exporter (сразу для мониторинга сервера Prometheus)
+  sudo apt-get install -y prometheus-node-exporter
+
+# Убедитесь, что службы Prometheus и Node Exporter запущены
+  sudo systemctl status prometheus
+  sudo systemctl status prometheus-node-exporter
+
+2. Настройка Prometheus
+# После установки:
+    Конфигурационный файл находится по пути /etc/prometheus/prometheus.yml.
+    Настройте prometheus.yml для добавления нужных целей мониторинга (экспортёров):
+    <OpenVPN_Server_IP - не забудьте поменять ip на свой (internat ip)
+sudo vim /etc/prometheus/prometheus.yml
+****************************
+scrape_configs:
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['localhost:9100'] # Добавляем локальный Node Exporter
+  - job_name: 'openvpn-exporter'
+    static_configs:
+      - targets: ['<OpenVPN_Server_IP>:9176']
+****************************
+sudo systemctl restart prometheus
+
+3. Установка Alertmanager
+sudo apt-get install -y prometheus-alertmanager
+
+  # Настройка Alertmanager
+    Конфигурационный файл по умолчанию: /etc/prometheus/alertmanager.yml.
+    Пример настройки для отправки алертов на электронную почту:
+https://support.google.com/mail/answer/185833?hl=en - по этой ссылке создай пароль для пиложения, чтобы не использовать основной пароль из почты (smtp.gmail.com:587)
+****************************
+global:
+  smtp_smarthost: 'smtp.example.com:587'
+  smtp_from: 'alerts@example.com'
+  smtp_auth_username: 'your-email@example.com'
+  smtp_auth_password: 'your-password'
+
+route:
+  receiver: 'email-alert'
+
+receivers:
+  - name: 'email-alert'
+    email_configs:
+      - to: 'your-notification-email@example.com'
+****************************
+sudo systemctl restart prometheus-alertmanager
+
+4. Интеграция Alertmanager с Prometheus
+  # Добавьте в конфигурацию Prometheus (/etc/prometheus/prometheus.yml) следующий блок:
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['localhost:9093'] # Локальный Alertmanager
+
+rule_files:
+  - "/etc/prometheus/alert.rules"
+
+# Создайте файл /etc/prometheus/alert.rules и добавьте туда ваши алерты. Пример:
+groups:
+  - name: node-alerts
+    rules:
+      - alert: HighCpuUsage
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage has been above 80% for the last 5 minutes."
+
+# Установка OpenVPN Exporter
+  На сервере OpenVPN:
+wget https://github.com/kumina/openvpn_exporter/releases/download/v0.2.0/openvpn_exporter-0.2.0.linux-amd64.tar.gz
+tar xvf openvpn_exporter-0.2.0.linux-amd64.tar.gz
+sudo mv openvpn_exporter /usr/local/bin/
+sudo nohup /usr/local/bin/openvpn_exporter --openvpn.stats /etc/openvpn/server-status.log &
+
+
+# firewall rules для gcloud
+gcloud compute firewall-rules create prometheus-access \
+    --allow tcp:9090 \
+    --network default \
+    --source-ranges 0.0.0.0/0 \
+    --target-tags prometheus-server \
+    --description "Allow external access to Prometheus on port 9090"
+
+
+
+
+
+
+
+
+
