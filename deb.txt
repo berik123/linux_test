@@ -1,38 +1,24 @@
-# Подготовьте структуру для пакета: Создайте каталог, который будет содержать необходимые файлы для вашего deb-пакета.Все эти действия нужно производить внутри вашей VM для дальнейшей выгрузки этого deb-пакета на новый сервер
-mkdir -p my-cert-center-package/DEBIAN
-mkdir -p my-cert-center-package/usr/local/my-cert-center
-  
-# Скопируйте скрипты и файлы: Поместите все скрипты и конфигурационные файлы в папку /usr/local/my-cert-center (или другую папку, где они будут располагаться на целевой системе).
-cp path/to/your/scripts/* my-cert-center-package/usr/local/my-cert-center/
+# Для упрощения и быстрого развертывания есть deb-пакет:
+    1. Автоматизирует установку Easy-RSA, настройку CA и генерацию сертификатов.
+    2. Сертификаты будут готовы для использования на VPN-сервере.
+    3. Этот подход ускоряет процесс и минимизирует количество ручных действий
 
-# Создайте файл управления: В каталоге DEBIAN создайте файл control, который содержит метаданные о пакете. Например:
-Package: my-cert-center
-Version: 1.0
-Section: base
-Priority: optional
-Architecture: all
-Maintainer: Your Name <your-email@example.com>
-Description: Certification Center setup package
- This package installs and configures the Certification Center with Easy-RSA and preconfigured scripts.
-Depends: easy-rsa
+# Команда для закачки пакета на сервер
+gcloud compute scp /home/$USER/Desktop/skillbox/easy-rsa-deb.deb easy-rsa:/home/$USER/
 
-# Добавьте скрипты для установки (необязательно): Если нужно выполнить команды при установке, создайте скрипты postinst (для настроек после установки) или preinst (перед установкой). Поместите их в DEBIAN.
-# Например, postinst может выглядеть так:
-#!/bin/bash
-# Запуск дополнительных команд настройки после установки
-/usr/local/my-cert-center/ваш_скрипт.sh
+# Установка и использование пакета
+    Установите пакет на виртуальной машине CA: sudo dpkg -i ~/easy-rsa-custom.deb
+    Запустите настройку Easy-RSA: sudo setup-easy-rsa.sh
+    Сертификаты и ключи будут сгенерированы и доступны в директории: ~/easy-rsa/output/
 
-# Не забудьте сделать их исполняемыми:
-chmod +x my-cert-center-package/DEBIAN/postinst
+# Скопируйте файлы на локальный ПК: 
+  gcloud compute scp easy-rsa:~/easy-rsa/output/ca.crt ~/Desktop/YOURFOLDER/
+  gcloud compute scp easy-rsa:~/easy-rsa/output/server.crt ~/Desktop/YOURFOLDER/
+  gcloud compute scp easy-rsa:~/easy-rsa/output/server.key ~/Desktop/YOURFOLDER/
 
-# Соберите пакет: Выполните команду сборки пакета, находясь в каталоге, где расположен ваш пакет
-dpkg-deb --build my-cert-center-package
+# Перенесите файлы на VPN-сервер:
+  cat ~/Desktop/YOURFOLDER/ca.crt | gcloud compute ssh vpn-server-01 --zone=asia-east1-b --command="sudo tee /etc/openvpn/server/ca.crt > /dev/null"
+  cat ~/Desktop/YOURFOLDER/server.crt | gcloud compute ssh vpn-server-01 --zone=asia-east1-b --command="sudo tee /etc/openvpn/server/server.crt > /dev/null"
+  cat ~/Desktop/YOURFOLDER/server.key | gcloud compute ssh vpn-server-01 --zone=asia-east1-b --command="sudo tee /etc/openvpn/server/server.key > /dev/null"
 
-# Тестируйте установку: Установите полученный deb-пакет на новой виртуальной машине:
-sudo dpkg -i my-cert-center-package.deb
-
-# P.S Команда для выгрузки deb пакета на локальную машину, для удобства файл есть и в репозитории
-# Запускайте эту команды со своей локальной машины, вместо username - поставьте из вашей виртуальной машины
-
-gcloud compute scp username@your-vm-instance:/home/username/my-cert-center-package.deb ./ --zone=ZONE --project=PROJECT_ID
 
