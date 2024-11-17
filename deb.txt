@@ -1,4 +1,4 @@
-# Для упрощения и быстрого развертывания есть deb-пакет:
+# Для упрощения и быстрого развертывания easy-rsa сервера есть deb-пакет:
     1. Автоматизирует установку Easy-RSA, настройку CA и генерацию сертификатов.
     2. Сертификаты будут готовы для использования на VPN-сервере.
     3. Этот подход ускоряет процесс и минимизирует количество ручных действий
@@ -22,3 +22,7 @@ gcloud compute scp /home/$USER/Desktop/skillbox/easy-rsa-deb.deb easy-rsa:/home/
   cat ~/Desktop/YOURFOLDER/server.key | gcloud compute ssh vpn-server-01 --zone=asia-east1-b --command="sudo tee /etc/openvpn/server/server.key > /dev/null"
 
 
+# Для упрощения и быстрого развертывания vpn-server сервера есть deb-пакет pn-server-deb.deb: 
+# Скопируйте пакет на сервер VPN, затем установите его:
+gcloud compute scp vpn-server-deb.deb vpn-server-01:/home/$USER/
+gcloud compute ssh vpn-server-01 --command="sudo dpkg -i /home/$USER/vpn-server-deb.deb"
