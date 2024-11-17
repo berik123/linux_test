@@ -1,5 +1,5 @@
 # Создайте виртуальную машину для CA
-# Я использовал регион sia-east1-b, вы же можете использовать любой другой регион. Все команды нужно выполнять внутри VM
+# Я использовал регион asia-east1-b, вы же можете использовать любой другой регион. Все команды нужно выполнять внутри VM
 gcloud compute instances create easy-rsa --zone=asia-east1-b --machine-type=e2-medium
 
 # Коннектимся к нашей машине
@@ -47,16 +47,18 @@ cd ~/easy-rsa
 
 Для удобства скопируйте файл ca.crt в 1 директорию с ключом server 
  sudo cp /home/$USER/easy-rsa/pki/ca.crt /home/$USER/easy-rsa/pki/issued/
-ls /home/murzabulatovberik/easy-rsa/pki/issued/ ---> 2 файла
+ls /home/$USER/easy-rsa/pki/issued/ ---> 2 файла
 
-# Нужно скопировать эти файлы на удаленный сервер VPN
+# Следующий шаг установка OPENVPN сервера, 
+
+# Нужно скопировать эти файлы на локальный пк, а после установки залить уже на сервер VPN
 gcloud compute ssh easy-rsa --zone=asia-east1-b --command="sudo cat /home/$USER/easy-rsa/pki/issued/ca.crt" > /home/$USER/Desktop/YOURFOLDER/ca.crt
 gcloud compute ssh easy-rsa --zone=asia-east1-b --command="sudo cat /home/$USER/easy-rsa/pki/issued/server.crt" > /home/$USER/Desktop/YOURFOLDER/server.crt
 # Копируем на VPN сервер
 cat /home/$USER/Desktop/skillbox/ca.crt | gcloud compute ssh vpn-server-01 --zone=asia-east1-b --command="sudo tee /etc/openvpn/server/ca.crt > /dev/null"
 cat /home/$USER/Desktop/skillbox/server.crt | gcloud compute ssh vpn-server-01 --zone=asia-east1-b --command="sudo tee /etc/openvpn/server/server.crt > /dev/null"
 
-# Следующий шаг установка OPENVPN сервера
+
 
 
 
