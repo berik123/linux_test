@@ -1,0 +1,112 @@
+# Создайте сервер
+gcloud compute instances create repo-server --zone=asia-east1-b --machine-type=e2-medium
+
+#Убедитесь, что сервер обновлён и mini-dinstall установлен:
+sudo apt-get update
+sudo apt-get install -y mini-dinstall
+
+# Настройка директории для репозитория
+# Создайте структуру директорий для хранения deb-пакетов и их обработки:
+
+sudo mkdir -p /srv/deb_repo/incoming
+sudo mkdir -p /srv/deb_repo/pool
+sudo mkdir -p /srv/deb_repo/dists
+sudo chmod -R 755 /srv/deb_repo
+
+# Создайте файл конфигурации для mini-dinstall в домашней директории пользователя:
+sudo vim ~/.mini-dinstall.conf
+******************************
+[DEFAULT]
+archive_style = flat
+incoming = /srv/deb_repo/incoming
+archivedir = /srv/deb_repo
+mail_to = root
+run_dinstall = 1
+
+[stable]
+description = Stable packages
+******************************
+
+# Закачайте на свой сервер нужные deb пакеты
+gcloud compute scp /home/$USER/Desktop/skillbox/easy-rsa-deb.deb $USER@repo-server:/home/$USER/easy-rsa-deb.deb
+gcloud compute scp /home/$USER/Desktop/skillbox/vpn-server-deb.deb $USER@repo-server:/home/$USER/vpn-server-deb.deb
+gcloud compute scp /home/$USER/Desktop/skillbox/node-exporter-deb.deb $USER@repo-server:/home/$USER/node-exporter-deb.deb
+gcloud compute scp /home/$USER/Desktop/skillbox/prometheus-config-deb.deb $USER@repo-server:/home/$USER/prometheus-config-deb.deb
+
+# Для добавления пакета выполните команду копирования:
+udo cp easy-rsa-deb.deb /srv/deb_repo/incoming/
+sudo cp vpn-server-deb.deb /srv/deb_repo/incoming/
+sudo cp node-exporter-deb.deb /srv/deb_repo/incoming/
+sudo cp prometheus-config-deb.deb /srv/deb_repo/incoming/
+
+# Для обработки пакетов и обновления репозитория выполните:
+mini-dinstall -b
+
+# Настройка доступа к репозиторию
+# Настройка Nginx:
+sudo apt-get install -y nginx
+sudo vim /etc/nginx/sites-available/deb-repo
+# Добавьте следующее содержимое:
+************************
+server {
+    listen 80;
+    server_name deb-repo.example.com;
+
+    root /srv/deb_repo;
+    index index.html;
+
+    location / {
+        autoindex on;
+    }
+}
+************************
+# Резервное копирование репозитория
+# Создайте файл /usr/local/bin/backup-deb-repo.sh
+************************
+#!/bin/bash
+BACKUP_DIR="/backup/deb_repo"
+SOURCE_DIR="/srv/deb_repo"
+DATE=$(date +%Y-%m-%d)
+
+mkdir -p "$BACKUP_DIR"
+tar -czvf "$BACKUP_DIR/deb_repo_backup_$DATE.tar.gz" "$SOURCE_DIR"
+************************
+sudo chmod +x /usr/local/bin/backup-deb-repo.sh
+
+# Настройка cron по желанию
+sudo crontab -e
+0 2 * * * /usr/local/bin/backup-deb-repo.sh  - ежедневный бэкап
+
+# На сервере хранилища установите Node Exporter для сбора метрик:
+sudo apt-get install -y prometheus-node-exporter
+
+# Добавление в конфигурацию Prometheus
+# На Prometheus-сервере добавьте таргет в prometheus.yml:
+- job_name: 'deb_repo'
+  static_configs:
+    - targets: ['<IP хранилища>:9100']
+
+# Настройка алерта
+# Добавьте алерт для мониторинга свободного места:
+- alert: DebRepoStorageLow
+  expr: node_filesystem_free_bytes{mountpoint="/srv/deb_repo"} < 1e+9
+  for: 5m
+  labels:
+    severity: critical
+  annotations:
+    summary: "Заканчивается место на диске для deb-репозитория"
+    description: "На сервере осталось менее 1 ГБ свободного места."
+
+
+
+
+
+
+
+
+
+
+
+
+
+
