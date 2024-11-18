@@ -60,6 +60,16 @@ server {
     }
 }
 ************************
+# Проверить текущие ссылки в sites-enabled: Убедитесь, что ссылка ведёт на правильный файл:
+ls -l /etc/nginx/sites-enabled/
+# Если есть ссылка на default удалите ее
+sudo rm /etc/nginx/sites-enabled/default
+sudo systemctl reload nginx
+№ Проверьте локальный адрес 
+curl http://127.0.0.1/
+
+
+
 # Резервное копирование репозитория
 # Создайте файл /usr/local/bin/backup-deb-repo.sh
 ************************
@@ -98,6 +108,18 @@ sudo apt-get install -y prometheus-node-exporter
     description: "На сервере осталось менее 1 ГБ свободного места."
 
 
+# настройки gcloud 
+# для HTTP (80) и HTTPS (443)
+gcloud compute firewall-rules create allow-repo-server-http-https \
+    --direction=INGRESS \
+    --priority=1000 \
+    --network=default \
+    --action=ALLOW \
+    --rules=tcp:80,tcp:443 \
+    --source-ranges=0.0.0.0/0 \
+    --target-tags=repo-server
+
+gcloud compute instances add-tags repo-server --tags=repo-server
 
 
 
