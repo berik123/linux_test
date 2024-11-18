@@ -1,10 +1,22 @@
 # для начала создадим новую vm:
 gcloud compute instances create prometheus --zone=asia-east1-b --machine-type=e2-medium
 
+# firewall rules для gcloud
+gcloud compute firewall-rules create prometheus-access \
+    --allow tcp:9090 \
+    --network default \
+    --source-ranges 0.0.0.0/0 \
+    --target-tags prometheus \
+    --description "Allow external access to Prometheus on port 9090"
+
+gcloud compute instances add-tags prometheus \
+    --tags=prometheus
+
 1. Установка Prometheus Server
 # Добавление официального репозитория Prometheus
-  echo "deb [signed-by=/usr/share/keyrings/prometheus-keyring.gpg] http://deb.debian.org/debian bookworm-backports main" | sudo tee /etc/apt/sources.list.d/prometheus.list
   sudo apt-get update
+  sudo apt-get install prometheus prometheus-alertmanager prometheus-node-exporter prometheus-nginx-exporter
+# ngnix-exporter мы установил для будущего сервера nginx
 
 # Установка Prometheus
   sudo apt-get install -y prometheus
@@ -66,7 +78,7 @@ alerting:
 
 rule_files:
   - "/etc/prometheus/alert.rules"
-
+***********************************
 # Создайте файл /etc/prometheus/alert.rules и добавьте туда ваши алерты. Пример:
 groups:
   - name: node-alerts
@@ -80,23 +92,147 @@ groups:
           summary: "High CPU usage on {{ $labels.instance }}"
           description: "CPU usage has been above 80% for the last 5 minutes."
 
+      - alert: LowDiskSpace
+        expr: node_filesystem_free_bytes / node_filesystem_size_bytes < 0.15
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low disk space on instance {{ $labels.instance }}"
+          description: "Disk space is below 15% for the last 5 minutes."
+
+      - alert: LowDiskSpace
+        expr: node_filesystem_free_bytes / node_filesystem_size_bytes < 0.15
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low disk space on instance {{ $labels.instance }}"
+          description: "Disk space is below 15% for the last 5 minutes."
+
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is above 85% for the last 5 minutes."
+
+      - alert: InstanceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Instance {{ $labels.instance }} is down"
+          description: "Prometheus has not been able to scrape {{ $labels.instance }} for 1 minute."
+
+***********************************
+
+# Установите node_exporter для все других серверов
+wget https://github.com/prometheus/node_exporter/releases/download/v1.8.2/node_exporter-1.8.2.linux-amd64.tar.gz
+tar -xzf node_exporter-1.8.2.linux-amd64.tar.gz 
+sudo mv node_exporter-1.8.2.linux-amd64 /opt/node_exporter
+sudo cp /opt/node_exporter/node_exporter /usr/local/bin/
+
+# Создайте файл для systemd-сервиса:
+sudo vim /etc/systemd/system/node_exporter.service
+# Добавьте следующее содержимое:
+[Unit]
+Description=Prometheus Node Exporter
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=nobody
+Group=nogroup
+ExecStart=/usr/local/bin/node_exporter
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
+# Сохраните и закройте файл. Затем активируйте сервис:
+sudo systemctl daemon-reload
+sudo systemctl enable node_exporter
+sudo systemctl start node_exporter
+
+# Настройка Prometheus для сбора метрик с Node Exporter
+Добавьте конфигурацию для сбора метрик с Node Exporter в файл Prometheus (/etc/prometheus/prometheus.yml), если вы еще этого не сделали:
+- job_name: 'easy-rsa'
+    static_configs:
+      - targets: ['<IP-адрес 1>:9100']
+
+sudo systemctl restart prometheus
+
 # Установка OpenVPN Exporter
   На сервере OpenVPN:
+# Зайдем на vm «vpn» и установим интерпретатор языка Go:
+sudo apt-get install -y golang
+wget -P ~/ https://github.com/kumina/openvpn_exporter/archive/refs/tags/v0.3.0.tar.gz
+tar xvf v0.3.0.tar.gz && cd ~/openvpn_exporter-0.3.0
+
+# В переменной «openvpnStatusPaths» конфигурационного файла «~/openvpn_exporter-0.3.0/main.go» укажем путь до лог-фала OpenVPN:
+sudo vim main.go 
+openvpnStatusPaths = flag.String("openvpn.status_paths", "/var/log/openvpn/openvpn-status.log", "Paths at which OpenVPN places its status files.")
+
 wget https://github.com/kumina/openvpn_exporter/releases/download/v0.2.0/openvpn_exporter-0.2.0.linux-amd64.tar.gz
 tar xvf openvpn_exporter-0.2.0.linux-amd64.tar.gz
 sudo mv openvpn_exporter /usr/local/bin/
 sudo nohup /usr/local/bin/openvpn_exporter --openvpn.stats /etc/openvpn/server-status.log &
+openvpnStatusPaths = flag.String("openvpn.status_paths", "/var/log/openvpn/openvpn-status.log", "Paths at which OpenVPN places its status files.")
+# Соберем программу из исходников:
+sudo go build ~/openvpn_exporter-0.3.0/main.go
 
+# В результате сборки мы получили бинарный файл «main», который необходимо переименовать и переместить в директорию «/usr/bin»:
+sudo cp ~/openvpn_exporter-0.3.0/main /usr/bin/openvpn_exporter
+# Настройка технической учетной записи
+# Создадим техническую учетную запись и группу «openvpn_exporter» для повышения безопасности работы программы:
+sudo addgroup --system "openvpn_exporter" --quiet
+sudo adduser --system --home /usr/share/openvpn_exporter --no-create-home --ingroup "openvpn_exporter" --disabled-password --shell /bin/false "openvpn_exporter"
+# Добавим в новую группу «openvpn_exporter» пользователя «root»:
+sudo usermod -a -G openvpn_exporter root
+# Теперь изменим права на владение лог-файлом OpenVPN:
+sudo chgrp openvpn_exporter /var/log/openvpn/openvpn-status.log
+sudo chmod 660 /var/log/openvpn/openvpn-status.log
+sudo chown openvpn_exporter:openvpn_exporter /usr/bin/openvpn_exporter
+sudo chmod 755 /usr/bin/openvpn_exporter
+# Настройка systemd unit
+# От имени пользователя «root» создадим systemd-юнит «/etc/systemd/system/openvpn_exporter.service» для запуска OpenVPN Exporter:
+sudo vim /etc/systemd/system/openvpn_exporter.service
+**********************
+[Unit]
+Description=Prometheus OpenVPN Node Exporter
+Wants=network-online.target
+After=network-online.target
 
-# firewall rules для gcloud
-gcloud compute firewall-rules create prometheus-access \
-    --allow tcp:9090 \
-    --network default \
-    --source-ranges 0.0.0.0/0 \
-    --target-tags prometheus-server \
-    --description "Allow external access to Prometheus on port 9090"
+[Service]
+User=openvpn_exporter
+Group=openvpn_exporter
+Type=simple
+ExecStart=/usr/bin/openvpn_exporter
 
+[Install]
+WantedBy=multi-user.target
+**********************
 
+# Сервис прослушивает порт 9176 по протоколу http.
+# Настройка iptables
+# Выполним настройку iptables для подключения к экспортеру сервера Prometheus из приватной сети с адресом «ВАШ IP»: (мой ip в gcloud 10.140.0.17)
+sudo iptables -A INPUT -p tcp -s 10.140.0.17 --dport 9176 -j ACCEPT -m comment --comment prometheus_openvpn_exporter
+# Сохраним конфигурацию с помощью инструмента iptables-persistent:
+sudo apt-get install -y iptables-persistent
+sudo service netfilter-persistent save
+
+# На сервере Prometheus:
+sudo vim /etc/prometheus/prometheus.yml 
+
+job_name: 'openvpn'
+    scrape_interval: 5s
+    scrape_timeout: 5s
+    static_configs:
+      - targets: ['INTERNAL_IP:9176']
 
 
 
