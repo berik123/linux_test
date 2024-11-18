@@ -32,7 +32,7 @@ gcloud compute instances add-tags prometheus \
 # После установки:
     Конфигурационный файл находится по пути /etc/prometheus/prometheus.yml.
     Настройте prometheus.yml для добавления нужных целей мониторинга (экспортёров):
-    <OpenVPN_Server_IP - не забудьте поменять ip на свой (internat ip)
+    <OpenVPN_Server_IP - не забудьте поменять ip на свой (internal ip)
 sudo vim /etc/prometheus/prometheus.yml
 ****************************
 scrape_configs:
@@ -127,8 +127,13 @@ groups:
         annotations:
           summary: "Instance {{ $labels.instance }} is down"
           description: "Prometheus has not been able to scrape {{ $labels.instance }} for 1 minute."
-
 ***********************************
+Выполним настройку iptables:
+sudo iptables -A INPUT -p tcp --dport 9093 -j ACCEPT -m comment --comment prometheus_alertmanager
+sudo iptables -A OUTPUT -p tcp --dport 587 -j ACCEPT -m comment --comment smtp
+sudo apt-get install -y iptables-persistent
+sudo service netfilter-persistent save
+
 
 # Установите node_exporter для все других серверов
 wget https://github.com/prometheus/node_exporter/releases/download/v1.8.2/node_exporter-1.8.2.linux-amd64.tar.gz
@@ -233,6 +238,7 @@ job_name: 'openvpn'
     scrape_timeout: 5s
     static_configs:
       - targets: ['INTERNAL_IP:9176']
+
 
 
 
