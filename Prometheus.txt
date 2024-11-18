@@ -239,9 +239,32 @@ job_name: 'openvpn'
     static_configs:
       - targets: ['INTERNAL_IP:9176']
 
+Установка Grafana
+wget -P ~/ https://dl.grafana.com/enterprise/release/grafana-enterprise_10.1.1_amd64.deb
+sudo apt-get install -y ~/grafana-enterprise_10.1.1_amd64.deb
+sudo systemctl daemon-reload
+sudo systemctl restart grafana-server.service
+sudo systemctl enable grafana-server.service
 
+Настройка iptables
+Выполним настройку iptables:
+sudo iptables -A INPUT -p tcp --dport 3000 -j ACCEPT -m comment --comment grafana
+sudo apt-get install -y iptables-persistent
+sudo service netfilter-persistent save
 
+Если используется Google Cloud, создайте правило для межсетевого экрана:
+gcloud compute firewall-rules create grafana-access \
+    --allow tcp:3000 \
+    --description="Allow Grafana access" \
+    --direction=INGRESS \
+    --target-tags=grafana
 
+gcloud compute instances add-tags <INSTANCE_NAME> --tags=grafana
+
+# Откройте ваш веб-браузер и перейдите по адресу:
+http://<EXTERNAL_IP>:3000
+Логин по умолчанию: admin
+Пароль по умолчанию: admin
 
 
 
