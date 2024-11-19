@@ -1,0 +1,33 @@
+# Создание снимка виртуальной машины (VM) в Google Cloud — это отличный способ сохранить текущее состояние вашей системы. Если что-то пойдёт не так, вы сможете восстановить её из снимка. Вот пошаговая инструкция:
+
+# Убедитесь, что VM находится в подходящем состоянии
+# Прежде чем создавать снимок, желательно остановить виртуальную машину, чтобы гарантировать консистентность данных.
+gcloud compute instances stop <VM_NAME>
+
+# После остановки VM выполните команду для создания снимка:
+gcloud compute disks snapshot prometheus-disk \
+  --snapshot-names=prometheus-backup-2024-11-19 \
+  --zone=asia-east1-b
+
+# После создания снимка вы можете убедиться, что он был успешно создан:
+gcloud compute snapshots list
+
+# Если что-то пошло не так, вы можете восстановить состояние VM с помощью снимка:
+# Шаг 1: Удалите существующий диск (если нужно):
+gcloud compute disks delete <DISK_NAME> --zone=<ZONE>
+
+# Шаг 2: Создайте новый диск из снимка:
+gcloud compute disks create <DISK_NAME> \
+  --source-snapshot=<SNAPSHOT_NAME> \
+  --zone=<ZONE>
+  
+# Шаг 3: Подключите новый диск к виртуальной машине:
+gcloud compute instances attach-disk <VM_NAME> \
+  --disk=<DISK_NAME> \
+  --zone=<ZONE>
+
+# Запустите виртуальную машину
+gcloud compute instances start <VM_NAME>
+
+# Если снимок создаётся регулярно, рекомендуется использовать автоматическое создание и управление снимками с помощью Snapshot Schedules.
+
