@@ -5,7 +5,7 @@
 gcloud compute instances stop <VM_NAME>
 
 # После остановки VM выполните команду для создания снимка:
-gcloud compute disks snapshot prometheus-disk \
+gcloud compute disks snapshot prometheus \
   --snapshot-names=prometheus-backup-2024-11-19 \
   --zone=asia-east1-b
 
