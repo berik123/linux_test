@@ -266,6 +266,52 @@ http://<EXTERNAL_IP>:3000
 Логин по умолчанию: admin
 Пароль по умолчанию: admin
 
+*******************************************
+Настройка HTTPS для prometheus
+# Подготовка Prometheus-сервера
+# Убедитесь, что ваш Prometheus сервер настроен для получения сертификатов:
+sudo mkdir -p /etc/prometheus/certs
+cd /etc/prometheus/certs
 
+# На сервере Prometheus создайте приватный ключ и запрос на сертификат:
+sudo openssl req -new -newkey rsa:2048 -nodes -keyout prometheus.key -out prometheus.csr -subj "/CN=prometheus-server/O=MyOrganization"
+# prometheus.key: Приватный ключ.
+# prometheus.csr: Запрос на сертификат.
+# CN=prometheus-server: Общее имя (должно совпадать с доменом или IP-адресом).
+
+gcloud compute scp $USER@prometheus:/etc/prometheus/certs/prometheus.csr /home/$USER/Desktop/skillbox/prometheus.csr
+
+
+Скопируйте файл prometheus.csr на сервер вашего удостоверяющего центра (CA). На CA выполните:
+gcloud compute scp /home/$USER/Desktop/skillbox/prometheus.csr $USER@easy-rsa:/home/$USER/prometheus.csr
+
+cd ~/easy-rsa
+sudo ./easyrsa import-req ~/prometheus.csr prometheus
+sudo ./easyrsa sign-req server prometheus
+
+# Подписанный сертификат prometheus.crt будет находиться в папке ~/easy-rsa/pki/issued/
+# Скопируйте корневой сертификат (CA):
+# Вам потребуется файл ca.crt, который обычно находится в ~/easy-rsa/pki/ca.crt.
+
+# Перенесите сертификаты на сервер Prometheus: Скопируйте файлы prometheus.crt, ca.crt, и на ваш сервер Prometheus, например, в директорию /etc/prometheus/ssl/. Для копирования используйте команду scp:
+gcloud compute scp $USER@easy-rsa:/home/murzabulatovberik/easy-rsa/pki/issued/prometheus.crt /home/$USER/Desktop/skillbox/prometheus.crt
+# Переместите сертификаты в директорию для SSL:
+sudo mkdir -p /etc/prometheus/ssl
+sudo mv ~/prometheus.crt /etc/prometheus/ssl/
+sudo mv ~/ca.crt /etc/prometheus/ssl/
+sudo mv /etc/prometheus/certs/prometheus.key /etc/prometheus/ssl/
+
+# Настройка Prometheus для HTTPS:
+# Если Prometheus настроен через systemd, отредактируйте файл /lib/systemd/system/prometheus.service и добавьте нужные параметры к запуску:
+*******************
+ExecStart=/usr/local/bin/prometheus \
+  --config.file=/etc/prometheus/prometheus.yml \
+  --web.listen-address="0.0.0.0:9090" \
+  --web.cert-file=/etc/prometheus/ssl/prometheus.crt \
+  --web.key-file=/etc/prometheus/ssl/prometheus.key \
+  --web.client-ca-file=/etc/prometheus/ssl/ca.crt
+*******************
+sudo systemctl daemon-reload
+sudo systemctl restart prometheus
 
 
